@@ -1,0 +1,287 @@
+diff -ur --exclude makefile --exclude ff --new-file FF-v2.3/ff.h FF-v2.3-step-format/ff.h
+--- FF-v2.3/ff.h	2016-10-04 12:31:46.000000000 +0100
++++ FF-v2.3-step-format/ff.h	2019-10-24 11:36:39.523041142 +0100
+@@ -357,6 +357,7 @@
+   char path[MAX_LENGTH];
+   char ops_file_name[MAX_LENGTH];
+   char fct_file_name[MAX_LENGTH];
++  char format_file_name[MAX_LENGTH];
+   int display_info;
+   int debug;
+ 
+diff -ur --exclude makefile --exclude ff --new-file FF-v2.3/format.c FF-v2.3-step-format/format.c
+--- FF-v2.3/format.c	1970-01-01 01:00:00.000000000 +0100
++++ FF-v2.3-step-format/format.c	2019-10-24 11:36:39.523041142 +0100
+@@ -0,0 +1,82 @@
++#include "format.h"
++#include <stdio.h>
++#include <string.h>
++#include <stdlib.h>
++
++StepFormatNode * headStepFormat;
++StepFormatNode * tailStepFormat;
++
++void addStepFormat(StepFormat *format) {
++	if (format == NULL)
++		return;
++
++	StepFormatNode *newNode = malloc(sizeof(StepFormatNode));
++	newNode->node = format;
++	newNode->next = NULL;
++
++	if (tailStepFormat == NULL) {
++		tailStepFormat = newNode;
++		headStepFormat = newNode;
++	} else {
++		tailStepFormat->next = newNode;
++		tailStepFormat = newNode;
++	}
++}
++
++StepFormat * getAction(char *name) {
++	if (headStepFormat == NULL || name == NULL)
++		return NULL;
++	
++	StepFormatNode * tempNode = headStepFormat;
++	while(tempNode  != NULL) {
++		if(strcmp(name, tempNode->node->actionName)==0) {
++			return tempNode->node;
++		}
++		tempNode = tempNode->next;
++	}
++	return NULL;
++}
++
++int loadFormatFile(FILE *f) {
++	headStepFormat = NULL;
++	tailStepFormat = NULL;
++	char last[128];
++	size_t charPointer = 0;
++	int formatsCount = 0;
++
++	char ch = getc(f);
++	while (ch != EOF) {
++		if (ch != '\n') {
++			if (charPointer < sizeof(last)){
++				last[charPointer++] = ch;
++			}
++		} else {
++			if(charPointer < sizeof(last))
++				last[charPointer] = '\0';
++
++			if(charPointer >0) {
++				StepFormat *newFormat = malloc(sizeof(StepFormat));
++				memset(newFormat, '\0', sizeof(StepFormat));
++				// Get the action name and format
++				char *ptr = strtok(last, " ");
++				char * actionName = malloc(sizeof(last));
++				strcpy(actionName, ptr);
++				newFormat->actionName = actionName;
++				size_t size = strnlen(actionName, sizeof(last));
++				ptr = ptr +size;
++				ptr++;
++				char * stepFormat = malloc(sizeof(last));
++				strcpy(stepFormat, ptr);
++				newFormat->stepFormat = stepFormat;
++				// Add to linked list
++				addStepFormat(newFormat);
++				formatsCount++;
++				//printf("action: %s\n", newFormat->actionName);
++				//printf("format: %s\n", newFormat->stepFormat);
++			}
++			charPointer = 0;
++		}
++		ch = getc(f);
++	}
++	return formatsCount;
++}
+diff -ur --exclude makefile --exclude ff --new-file FF-v2.3/format.h FF-v2.3-step-format/format.h
+--- FF-v2.3/format.h	1970-01-01 01:00:00.000000000 +0100
++++ FF-v2.3-step-format/format.h	2019-10-24 11:36:39.523041142 +0100
+@@ -0,0 +1,18 @@
++#include <stdio.h>
++
++typedef struct StepFormat StepFormat;
++typedef struct StepFormatNode StepFormatNode;
++
++struct StepFormat {
++	char *actionName;
++	char *stepFormat;
++};
++
++struct StepFormatNode {
++	StepFormat *node;
++	StepFormatNode *next;
++};
++
++void addStepFormat(StepFormat * format);
++int loadFormatFile(FILE *f);
++StepFormat * getAction(char *name);
+diff -ur --exclude makefile --exclude ff --new-file FF-v2.3/main.c FF-v2.3-step-format/main.c
+--- FF-v2.3/main.c	2015-11-05 08:59:14.000000000 +0000
++++ FF-v2.3-step-format/main.c	2019-10-24 11:36:39.523041142 +0100
+@@ -73,7 +73,7 @@
+ 
+ #include "relax.h"
+ #include "search.h"
+-
++#include "format.h"
+ 
+ 
+ 
+@@ -493,6 +493,8 @@
+   /* same for fct file 
+    */
+   char fct_file[MAX_LENGTH] = "";
++
++  char format_file[MAX_LENGTH] = "";
+   
+   struct tms start, end;
+ 
+@@ -532,7 +534,14 @@
+    */
+   sprintf(ops_file, "%s%s", gcmd_line.path, gcmd_line.ops_file_name);
+   sprintf(fct_file, "%s%s", gcmd_line.path, gcmd_line.fct_file_name);
++  printf("file: %s\n", gcmd_line.format_file_name);
++  if (gcmd_line.format_file_name[0] != '\0') {
++	printf("ff: loading custom format file...\n");
++  	sprintf(format_file, "%s%s", gcmd_line.path, gcmd_line.format_file_name);
++	FILE *f = fopen(gcmd_line.format_file_name, "r");
+ 
++	printf("ff: loaded formats for %d actions!\n", loadFormatFile(f));
++  }
+ 
+   /* parse the input files
+    */
+@@ -832,7 +841,8 @@
+   printf("\nOPTIONS   DESCRIPTIONS\n\n");
+   printf("-p <str>    path for operator and fact file\n");
+   printf("-o <str>    operator file name\n");
+-  printf("-f <str>    fact file name\n\n");
++  printf("-f <str>    fact file name\n");
++  printf("-h <str>    format file name\n\n");
+   printf("-i <num>    run-time information level( preset: 1 )\n");
+   printf("      0     only times\n");
+   printf("      1     problem name, planning process infos\n");
+@@ -893,6 +903,7 @@
+   
+   memset(gcmd_line.ops_file_name, 0, MAX_LENGTH);
+   memset(gcmd_line.fct_file_name, 0, MAX_LENGTH);
++  memset(gcmd_line.format_file_name, 0, MAX_LENGTH);
+   memset(gcmd_line.path, 0, MAX_LENGTH);
+ 
+   while ( --argc && ++argv ) {
+@@ -919,6 +930,9 @@
+ 	case 'd':
+ 	  sscanf( *argv, "%d", &gcmd_line.debug );
+ 	  break;
++	case 'h':
++	  strncpy( gcmd_line.format_file_name, *argv, MAX_LENGTH );
++	  break;
+ 	default:
+ 	  printf( "\nff: unknown option: %c entered\n\n", option );
+ 	  return FALSE;
+diff -ur --exclude makefile --exclude ff --new-file FF-v2.3/output.c FF-v2.3-step-format/output.c
+--- FF-v2.3/output.c	2016-10-04 12:31:46.000000000 +0100
++++ FF-v2.3-step-format/output.c	2019-10-24 11:36:39.523041142 +0100
+@@ -57,7 +57,7 @@
+ #include "ff.h"
+ 
+ #include "output.h"
+-
++#include "format.h"
+ 
+ 
+ 
+@@ -729,14 +729,75 @@
+        !a->pseudo_action ) {
+     printf("REACH-GOAL");
+   } else {
+-    printf("%s", a->name ); 
+-    for ( i = 0; i < a->num_name_vars; i++ ) {
+-      printf(" %s", gconstants[a->name_inst_table[i]]);
+-    }
++	StepFormat *format = getAction(a->name);
++	printf("%s", a->name ); 
++	if (format != NULL) {
++		char *formatted = malloc(sizeof(char)*256);
++		char *repChar = malloc(sizeof(char)*12);
++		strcpy(formatted, format->stepFormat);
++		for ( i = 0; i < a->num_name_vars; i++ ) {
++		  sprintf(repChar, "$%d", i);
++		  formatted = str_replace(formatted, repChar,
++				  gconstants[a->name_inst_table[i]]);
++		}
++		printf(" %s", formatted);
++		free(repChar);
++	} else {
++		for ( i = 0; i < a->num_name_vars; i++ ) {
++		  printf(" %s", gconstants[a->name_inst_table[i]]);
++		}
++	}
+   }
+ 
+ }
+ 
++// from: https://stackoverflow.com/a/779960
++// You must free the result if result is non-NULL.
++char *str_replace(char *orig, char *rep, char *with) {
++    char *result; // the return string
++    char *ins;    // the next insert point
++    char *tmp;    // varies
++    int len_rep;  // length of rep (the string to remove)
++    int len_with; // length of with (the string to replace rep with)
++    int len_front; // distance between rep and end of last rep
++    int count;    // number of replacements
++
++    // sanity checks and initialization
++    if (!orig || !rep)
++        return NULL;
++    len_rep = strlen(rep);
++    if (len_rep == 0)
++        return NULL; // empty rep causes infinite loop during count
++    if (!with)
++        with = "";
++    len_with = strlen(with);
++
++    // count the number of replacements needed
++    ins = orig;
++    for (count = 0; tmp = strstr(ins, rep); ++count) {
++        ins = tmp + len_rep;
++    }
++
++    tmp = result = malloc(strlen(orig) + (len_with - len_rep) * count + 1);
++
++    if (!result)
++        return NULL;
++
++    // first time through the loop, all the variable are set correctly
++    // from here on,
++    //    tmp points to the end of the result string
++    //    ins points to the next occurrence of rep in orig
++    //    orig points to the remainder of orig after "end of rep"
++    while (count--) {
++        ins = strstr(orig, rep);
++        len_front = ins - orig;
++        tmp = strncpy(tmp, orig, len_front) + len_front;
++        tmp = strcpy(tmp, with) + len_with;
++        orig += len_front + len_rep; // move to next "end of rep"
++    }
++    strcpy(tmp, orig);
++    return result;
++}
+ 
+ 
+ 
+diff -ur --exclude makefile --exclude ff --new-file FF-v2.3/output.h FF-v2.3-step-format/output.h
+--- FF-v2.3/output.h	2010-06-21 09:38:27.000000000 +0100
++++ FF-v2.3-step-format/output.h	2019-10-24 11:36:39.523041142 +0100
+@@ -77,7 +77,7 @@
+ void print_Fact( Fact *f ); 
+ void print_ft_name( int index );
+ void print_op_name( int index );
+-
++char *str_replace(char *orig, char *rep, char *with);
+ 
+ 
+ void print_plan( void );
