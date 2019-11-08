@@ -1,11 +1,12 @@
+# Fast-Forward with steps formatting
 [Visit project page on humaidq.ae](https://humaidq.ae/projects/ff-format-patch/)
-### 1. Description
+## 1. Description
 
 This is a patch for [Fast-Forward](https://fai.cs.uni-saarland.de/hoffmann/ff.html)
 which allows the steps to be formatted in a human-readable way, by providing a
 'format file' as a parameter.
 
-### 2. Requirements
+## 2. Requirements
 
 The following packages must be installed on your system.
 
@@ -18,12 +19,12 @@ The following packages must be installed on your system.
 This patch is written for FF v2.3, and will probably not work with later
 versions.
 
-### 3. Copying and contributing
+## 3. Copying and contributing
 
 Fast-Forward is released under the GNU General Public License version 2 or
 later, and so is the patch.
 
-### 4. Downloading and patching
+## 4. Downloading and patching
 
 - [`steps-format-v1.patch`](steps-format-v1.patch) *(12K)*
 - [`FF-v2.3.tgz`](https://fai.cs.uni-saarland.de/hoffmann/ff/FF-v2.3.tgz)
@@ -38,7 +39,7 @@ $ make
 ```
 Then you will have a binary with the patch.
 
-### 5. Example Usage
+## 5. Example Usage
 
 The patch adds an additional parameter `-h` to the program, which allows you
 to pass a 'format file.' For example:
